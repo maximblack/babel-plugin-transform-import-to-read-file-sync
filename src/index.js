@@ -13,11 +13,11 @@ export default ({types: {
     variableDeclaration,
     variableDeclarator,
 
+    isImportDeclaration,
     isImportDefaultSpecifier,
     isImportNamespaceSpecifier,
     isImportSpecifier,
     isStringLiteral,
-    isImportDeclaration,
 
     assertImportDefaultSpecifier
 }}) => {

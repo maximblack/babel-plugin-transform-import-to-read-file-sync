@@ -4,7 +4,7 @@ Use `import` to read any file contents to local variable in Node.js. Filename is
 
 ## Installation
 
-```
+```sh
 npm install babel-plugin-transform-import-to-read-file-sync
 ```
 
