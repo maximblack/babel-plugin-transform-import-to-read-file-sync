@@ -10,6 +10,8 @@ export default ({types: {
     identifier,
     importDeclaration,
     importSpecifier,
+    expressionStatement,
+    expression,
     memberExpression,
     stringLiteral,
     literal,
@@ -64,7 +66,7 @@ export default ({types: {
         }*/
 
         console.log('stringLiteral', stringLiteral(result.toString()));
-        console.log('literal', literal(result.toString()));
+        //console.log('literal', literal(result.toString()));
 
         return stringLiteral(result.toString());
 
@@ -127,6 +129,7 @@ export default ({types: {
                             variableDeclarator(
                                 local,
                                 readFileSyncArgs
+                               // expressionStatement(readFileSyncArgs)
                                 /*callExpression(
                                     readFileSync,
                                     readFileSyncArgs
