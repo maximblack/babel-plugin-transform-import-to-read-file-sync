@@ -1,6 +1,6 @@
 import {equal} from 'assert';
 import template from 'babel-template';
-import {readFileSync} from 'fs';
+import {readFileSync, existsSync} from 'fs';
 import {resolve, dirname} from 'path';
 
 const fromSourceString = code => template(`(${code})`)().expression;
@@ -28,112 +28,67 @@ export default ({types: {
 
     assertImportDefaultSpecifier
 }}) => {
-    const testOptions = (opts, value, fileDir, match) => {
+    const testOptions = (opts, value, fileDir, sourceRoot, match) => {
         const optsArray = Array.isArray(opts) ? opts : [opts];
-        optsArray.some(({options, test}) => {
+        optsArray.some(({options, test, resolve, module}) => {;
             if (test && new RegExp(test).test(value)) {
-                const matches = value.match(new RegExp(test));
-                return match(readFileSyncCallExpressionArgs(matches[1] || value, options, fileDir));
+                const regExpTest = new RegExp(test);
+                const matches = value.match(regExpTest);
+                return match(readFileSyncStringLiteral(matches[1] || value, {options, resolve, module}, fileDir, sourceRoot));
             }
         });
     }
-    const readFileSyncCallExpressionArgs = (value, options, fileDir) => {
-        // [require.resolve(<file>)[, encoding|options]]
-        /*var isBuffer = false;
-        if (enc === null || enc === undefined) {
-            isBuffer = true;
-            enc = 'base64';
+    const readFileSyncStringLiteral = (value, {options, module, resolve: extensions}, fileDir, sourceRoot) => {
+        extensions = extensions || [''];
+
+        for(let i in extensions) {
+
+            let modulePath = '';
+            if(module) {
+                modulePath = sourceRoot + '/node_modules/' + module + '/' + value + extensions[i];
+            } else {
+                modulePath = resolve(fileDir, value + extensions[i]);
+            }
+
+            //console.log('modulePath', modulePath);
+            //return stringLiteral(modulePath);
+
+            if(existsSync(modulePath)) {
+                const contents = readFileSync(modulePath, 'utf8'/*enc*/);
+                return stringLiteral(contents.toString());
+            }
+
         }
-        if (enc && typeof enc === 'object' && enc.encoding) {
-            enc = enc.encoding;
-        }*/
-        const modulePath = resolve(fileDir, value);
 
-        const result = readFileSync(modulePath, 'utf8'/*enc*/);
+        return stringLiteral('');
 
-        /*// Submit new dependencies back to webpack/browserify.
-        // This is currently a bit ugly, but it appears to be
-        // a limitation of Babel's plugin architecture, there
-        // is no documented/clean way of bubbling this back up
-        // to the bundler.
-        instance.onFile(file);*/
-
-        /*if (isBuffer) {
-            return buffer({
-                CONTENT: t.stringLiteral(result),
-                ENC: t.stringLiteral(enc)
-            });
-        }*/
-
-        console.log('stringLiteral', stringLiteral(result.toString()));
-        //console.log('literal', literal(result.toString()));
-
-        return stringLiteral(result.toString());
-
-        /*const args = [
-            callExpression(
-                memberExpression(
-                    identifier('require'),
-                    identifier('resolve')
-                ),
-                [stringLiteral(value)]
-            )
-        ];
-        if (options) {
-            // Second argument to readFileSync can be string or object
-            args.push(fromSourceString(JSON.stringify(options)));
-        }
-        return args;*/
     };
     return {
         visitor: {
             ImportDeclaration(path, state) {
                 const { opts } = state;
+
+                // Get imported filename
                 const filename = state.file.opts.filename;
 
+                const sourceRoot = state.file.opts.sourceRoot;
+
+                // Get file dir from visitor
                 const fileDir = dirname(filename);
 
                 const {specifiers, source: {value}} = path.node;
-                testOptions(opts, value, fileDir, readFileSyncArgs => {
+
+                testOptions(opts, value, fileDir, sourceRoot, stringLiteral => {
                     equal(specifiers.length, 1, 'Number of import specifiers.');
                     assertImportDefaultSpecifier(specifiers[0]);
                     const {local} = specifiers[0];
-                    // Search import <specifiers> 'fs';
-                    let readFileSync;
-                    const fsImportDeclarations = path.parent.body
-                        .filter(isImportDeclaration)
-                        .filter(({source: {value}}) => value === 'fs');
-                    if (!fsImportDeclarations.some(({specifiers}) => specifiers.find(specifier => {
-                        if (isImportDefaultSpecifier(specifier) || isImportNamespaceSpecifier(specifier)) {
-                            readFileSync = memberExpression(specifier.local, identifier('readFileSync'));
-                            return true;
-                        }
-                        if (isImportSpecifier(specifier)) {
-                            if (specifier.imported.name === 'readFileSync') {
-                                readFileSync = specifier.local;
-                                return true;
-                            }
-                        }
-                    }))) {
-                        /*!// fs is not imported
-                        readFileSync = path.scope.generateUidIdentifier('readFileSync');
-                        // Add import { readFileSync as _readFileSync } from 'fs';
-                        path.insertBefore(importDeclaration(
-                            [importSpecifier(readFileSync, identifier('readFileSync'))],
-                            stringLiteral('fs')
-                        ));*/
-                    }
-                    // const <localName> = <readFileSync>(<args>);
+
+                    // const <localName> = 'fileContents';
                     path.replaceWith(
                         variableDeclaration('const', [
                             variableDeclarator(
                                 local,
-                                readFileSyncArgs
-                               // expressionStatement(readFileSyncArgs)
-                                /*callExpression(
-                                    readFileSync,
-                                    readFileSyncArgs
-                                )*/
+                                stringLiteral
                             )
                         ])
                     );
